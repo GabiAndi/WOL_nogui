@@ -32,42 +32,42 @@ void Application::exec()
 
         else if (strcmp(argv[i], "-l") == 0)
         {
-            salida << "------------------ Interfaces de red detectadas ------------------" << Qt::endl;
+            salida << "------------------ Interfaces de red detectadas ------------------" << endl;
 
             getInterfaces();
 
-            salida << "------------------------------------------------------------------" << Qt::endl;
+            salida << "------------------------------------------------------------------" << endl;
         }
 
         else if (strcmp(argv[i], "-h") == 0)
         {
-            salida << "-------------------- Comandos para el manejo ---------------------" << Qt::endl;
+            salida << "-------------------- Comandos para el manejo ---------------------" << endl;
 
             salida << "Esta es una aplicación simple para hacer Wake On Lan en un entorno de consola. Esto es apto para servidores de monitorieo de bajo consumo IoT, etc." << Qt::endl;
 
-            salida << "\n" << Qt::endl;
+            salida << "\n" << endl;
 
-            salida << "-m MAC_ADDRES se utiliza para especificar la direccion del equipo destino." << Qt::endl;
+            salida << "-m MAC_ADDRES se utiliza para especificar la direccion del equipo destino." << endl;
 
-            salida << "-i IFACE especifica la interfaz con la cual se esta conectada a la RED local." << Qt::endl;
+            salida << "-i IFACE especifica la interfaz con la cual se esta conectada a la RED local." << endl;
 
-            salida << "-l hace un listado de las interfaces de red disponible en el equipo." << Qt::endl;
+            salida << "-l hace un listado de las interfaces de red disponible en el equipo." << endl;
 
-            salida << "-h muestra exactamente esta ayuda :)." << Qt::endl;
+            salida << "-h muestra exactamente esta ayuda :)." << endl;
 
-            salida << "\n" << Qt::endl;
+            salida << "\n" << endl;
 
-            salida << "Un ejemplo seria: ./WOL_nogui -m 10:20:30:40:50:60 -i eth0" << Qt::endl;
+            salida << "Un ejemplo seria: ./WOL_nogui -m 10:20:30:40:50:60 -i eth0" << endl;
 
-            salida << "------------------------------------------------------------------" << Qt::endl;
+            salida << "------------------------------------------------------------------" << endl;
         }
     }
 
     if (MAC != "" && iface != "")
     {
-        sendMagicPackage(MAC, iface);
+        salida << "Despertando " << MAC << " conectado a " << iface << endl;
 
-        salida << "Despertando " << MAC << " conectado a " << iface << Qt::endl;
+        sendMagicPackage(MAC, iface);
     }
 
     exit(0);
@@ -82,7 +82,7 @@ void Application::getInterfaces()
 
     for (QNetworkInterface iface : interfaces)
     {
-        salida << iface.name() << Qt::endl;
+        salida << iface.name() << endl;
     }
 }
 
@@ -102,6 +102,8 @@ void Application::sendMagicPackage(QString MAC, QString iface)
      * Este paquete se manda mediante UDP al broadcast de la red por el puerto 9.
     */
 
+    QTextStream salida(stdout);
+
     MAC.remove(":");
 
     QByteArray data1MAC = QByteArray::fromHex(MAC.toLocal8Bit());
@@ -119,22 +121,21 @@ void Application::sendMagicPackage(QString MAC, QString iface)
     // Se crea un scoket UDP
     QUdpSocket qudpsocket;
 
-    // Se obtione el indice de la interfaz
-    int ifaceIndex = 0;
+    // Se envia el paquete mágico al broadcast asi todos los equipor en la red lo escucharan
+    QNetworkInterface interface = QNetworkInterface::allInterfaces().at(QNetworkInterface::interfaceIndexFromName(iface) - 1);
+    QHostAddress address;
 
-    QList<QNetworkInterface> interfaces(QNetworkInterface::allInterfaces());
-
-    for (int i = 0 ; i < interfaces.count() ; i++)
+    for (QNetworkAddressEntry addressEntrie : interface.addressEntries())
     {
-        if (interfaces.at(i).name() == iface)
+        if (addressEntrie.ip().toString().count(".") == 3)
         {
-            ifaceIndex = i;
+            address = addressEntrie.ip();
         }
     }
 
-    // Se envia el paquete mágico al broadcast asi todos los equipor en la red lo escucharan
-    QString broadcastIP(QNetworkInterface::allAddresses()[ifaceIndex].toString().left(
-                QNetworkInterface::allAddresses()[ifaceIndex].toString().lastIndexOf('.')).append(".255"));
+    QString broadcastIP(address.toString().left(address.toString().lastIndexOf('.')).append(".255"));
+
+    salida << "Broadcast " << broadcastIP << endl;
 
     qudpsocket.writeDatagram(magicPackage, magicPackage.size(), QHostAddress(broadcastIP), 9);
 }
